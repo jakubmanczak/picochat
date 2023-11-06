@@ -24,19 +24,31 @@ int main(void){
   setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
   listen(sockfd, BACKLOG);
 
+  int connfd = 0;
+  int buffersize = 256;
+  char *buffer = malloc(buffersize * sizeof(char));
+
   while(1){
-    struct sockaddr_storage connstore;
-    socklen_t addrsize;
-    int connfd;
+    if(!connfd){
+      struct sockaddr_storage connstore;
+      socklen_t addrsize;
 
-    addrsize = sizeof connstore;
-    connfd = accept(sockfd, (struct sockaddr *)&connstore, &addrsize);
-
-    char *msg = "testmsg\n";
-
-    send(connfd, welcomemsg, strlen(welcomemsg), 0);
-    
-    close(connfd);
+      addrsize = sizeof connstore;
+      connfd = accept(sockfd, (struct sockaddr *)&connstore, &addrsize);
+      send(connfd, welcomemsg, strlen(welcomemsg), 0);
+      printf("Connection (%d) accepted.\n", connfd);
+    }else{
+      memset(buffer, 0, buffersize);
+      int rv = recv(connfd, buffer, buffersize, 0);
+      if(rv == 0){
+        close(connfd); printf("Connection (%d) closed.\n", connfd); connfd = 0;
+      }else{
+        printf("%d says: %s", connfd, buffer);
+        send(connfd, "received message:\n", 19, 0);
+        send(connfd, buffer, strlen(buffer), 0);
+        send(connfd, "\n", 2, 0);
+      }
+    }
   }
 
   return 0;
