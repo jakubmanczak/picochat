@@ -20,8 +20,9 @@ typedef struct client{
   // char *name;
 } client;
 
-char *welcomemsg = "You've reached a picochat server.\n";
-int sockfd; int clients = 0;
+int sockfd;
+char *welcomemsg = "reached a picochat server.\n";
+fd_set sockets, readySockets;
 
 void setupServerNetworking(){
   struct addrinfo hints, *res; int yes = -1;
@@ -37,32 +38,36 @@ void setupServerNetworking(){
 
 int main(void){
   setupServerNetworking();
+  FD_ZERO(&sockets);
+  FD_SET(sockfd, &sockets);
 
+  char *buffer = malloc(MSGBUFFER); int rv;
+  printf("picochat server up.\n");
   while(1){
-    client cl; cl.connfd = 0;
+    readySockets = sockets; // select is destructive
+    select(FD_SETSIZE, &readySockets, NULL, NULL, NULL);
 
-    struct sockaddr_storage connstore;
-    socklen_t addrsize;
+    for(int i = 0; i < FD_SETSIZE; i++){
+      if(FD_ISSET(i, &readySockets)){
+        if(i == sockfd){
+          client cl; cl.connfd = 0;
 
-    addrsize = sizeof connstore;
-    cl.connfd = accept(sockfd, (struct sockaddr *)&connstore, &addrsize);
-    printf("conn fd:%d accepted\n", cl.connfd);
-    if(!fork()){
-      char *buffer = malloc(MSGBUFFER); int rv = 0xbeef;
-      close(sockfd); clients++;
-      while(1){
-        rv = recv(cl.connfd, buffer, MSGBUFFER, 0);
-        if(rv > 0){
-          printf("%d: %s", cl.connfd, buffer);
-          memset(buffer, 0, MSGBUFFER);
-        }else if(rv == 0){
-          printf("conn fd:%d dropped\n", cl.connfd);
-          close(cl.connfd); free(buffer);
-          exit(0);
+          struct sockaddr_storage connstore;
+          socklen_t addrsize;
+          addrsize = sizeof connstore;
+          cl.connfd = accept(sockfd, (struct sockaddr *)&connstore, &addrsize);
+          FD_SET(cl.connfd, &sockets);
+          printf("conn fd:%d accepted.\n", cl.connfd);
         }else{
-          // error occured
-          printf("recv() error!\n");
-          exit(1);
+          rv = recv(i, buffer, MSGBUFFER, 0);
+          if(rv == 0){
+            FD_CLR(i, &sockets);
+            printf("conn fd:%d dropped.\n", i);
+            close(i);
+          }else{
+            printf("%d: %s", i, buffer);
+          }
+          memset(buffer, 0, MSGBUFFER);
         }
       }
     }
