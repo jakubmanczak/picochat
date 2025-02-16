@@ -4,7 +4,7 @@ use broadcasts::Broadcast;
 use messages::{CHOSEN_NAME, PICK_NAME, REACHED, WELCOME};
 use state::{ServerState, User};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{self, AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
     spawn,
 };
@@ -24,7 +24,7 @@ async fn main() {
             let mut rx = state.broadcasts.subscribe();
             loop {
                 let broadcast = rx.recv().await.unwrap();
-                println!("{broadcast}");
+                print!("{broadcast}");
             }
         });
     }
@@ -62,15 +62,44 @@ async fn main() {
                     break;
                 }
             }
-
             socket.write_all(WELCOME.as_bytes()).await.unwrap();
 
+            let (mut rsocket, mut wsocket) = io::split(socket);
+
+            let writestate = state.clone();
+            spawn(async move {
+                let mut rx = writestate.broadcasts.subscribe();
+                loop {
+                    let broadcast = rx.recv().await.unwrap().to_string();
+                    match wsocket.write_all(broadcast.as_bytes()).await {
+                        Ok(_) => (),
+                        Err(_) => (), // user probably left...
+                    };
+                }
+            });
+
+            // reads
             loop {
-                // let a = state.
                 let mut buffer = [0u8; 256];
-                let n = socket.read(&mut buffer).await.unwrap();
+                let n = rsocket.read(&mut buffer).await.unwrap();
                 if n == 0 {
                     break;
+                } else {
+                    state
+                        .broadcasts
+                        .send(Broadcast::UserMessage {
+                            user: user.clone(),
+                            message: String::from_utf8_lossy(&buffer)
+                                .chars()
+                                .filter(|c| {
+                                    c.is_alphabetic()
+                                        || c.is_digit(10)
+                                        || c.is_ascii_punctuation()
+                                        || *c == ' '
+                                })
+                                .collect::<String>(),
+                        })
+                        .unwrap();
                 }
             }
 
