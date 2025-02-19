@@ -41,7 +41,10 @@ async fn main() {
             loop {
                 socket.write_all(PICK_NAME.as_bytes()).await.unwrap();
                 let mut buffer = [0u8; 12];
-                socket.read(&mut buffer).await.unwrap();
+                match socket.read(&mut buffer).await {
+                    Ok(0) | Err(_) => return,
+                    Ok(_) => (),
+                };
                 let name: String = String::from_utf8_lossy(&buffer)
                     .chars()
                     .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '.')
