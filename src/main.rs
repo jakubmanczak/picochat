@@ -15,7 +15,7 @@ pub mod state;
 
 #[tokio::main]
 async fn main() {
-    let listener = TcpListener::bind("0.0.0.0:2004").await.unwrap();
+    let listener = TcpListener::bind("0.0.0.0:7426").await.unwrap();
     let state = Arc::new(ServerState::new());
 
     {
