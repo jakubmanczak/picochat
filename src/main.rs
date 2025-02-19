@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use broadcasts::Broadcast;
-use messages::{CHOSEN_NAME, PICK_NAME, REACHED, WELCOME};
-use state::{ServerState, User};
+use state::ServerState;
 use tokio::{
     io::{self, AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
@@ -11,6 +10,7 @@ use tokio::{
 
 pub mod broadcasts;
 pub mod messages;
+pub mod routines;
 pub mod state;
 
 #[tokio::main]
@@ -33,45 +33,24 @@ async fn main() {
         let (mut socket, _) = listener.accept().await.unwrap();
         let state = state.clone();
         spawn(async move {
-            socket.write_all(REACHED.as_bytes()).await.unwrap();
-            let userlist = state.list_users().await;
-            socket.write_all(userlist.as_bytes()).await.unwrap();
-
-            let user;
-            loop {
-                socket.write_all(PICK_NAME.as_bytes()).await.unwrap();
-                let mut buffer = [0u8; 12];
-                match socket.read(&mut buffer).await {
-                    Ok(0) | Err(_) => return,
-                    Ok(_) => (),
-                };
-                let name: String = String::from_utf8_lossy(&buffer)
-                    .chars()
-                    .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '.')
-                    .collect();
-                let msg = CHOSEN_NAME.replace("REPL", &name);
-                socket.write_all(msg.as_bytes()).await.unwrap();
-
-                let users = state.users.read().await;
-                if !users.iter().any(|u| u.name == name) {
-                    drop(users);
-                    user = User { name };
-                    let mut users = state.users.write().await;
-                    users.push(user.clone());
-                    state
-                        .broadcasts
-                        .send(Broadcast::UserJoined(user.clone()))
-                        .unwrap();
-                    break;
-                }
-            }
-            socket.write_all(WELCOME.as_bytes()).await.unwrap();
+            match routines::prejoin(&mut socket, &state).await {
+                Ok(_) => (),
+                Err(_) => return,
+            };
+            let user = match routines::get_nickname(&mut socket, &state).await {
+                Ok(Some(u)) => u,
+                Ok(None) | Err(_) => return,
+            };
+            match routines::postjoin(&mut socket).await {
+                Ok(_) => (),
+                Err(_) => return,
+            };
 
             let (mut rsocket, mut wsocket) = io::split(socket);
 
-            let mut buffer = [0u8; 256];
             let mut rx = state.broadcasts.subscribe();
             loop {
+                let mut buffer = [0u8; 256];
                 tokio::select! {
                     res = rx.recv() => {
                         let res = res.unwrap().to_string();
@@ -91,6 +70,7 @@ async fn main() {
                                              c.is_alphabetic() || c.is_digit(10) || c.is_ascii_punctuation() || *c == ' '
                                         }).collect::<String>(),
                                 }).unwrap();
+                                // buffer = [0u8; 256];
                             },
                         }
                     }
