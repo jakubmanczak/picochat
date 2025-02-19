@@ -69,44 +69,34 @@ async fn main() {
 
             let (mut rsocket, mut wsocket) = io::split(socket);
 
-            let writestate = state.clone();
-            spawn(async move {
-                let mut rx = writestate.broadcasts.subscribe();
-                loop {
-                    let broadcast = rx.recv().await.unwrap().to_string();
-                    match wsocket.write_all(broadcast.as_bytes()).await {
-                        Ok(_) => (),
-                        Err(_) => (), // user probably left...
-                    };
-                }
-            });
-
-            // reads
+            let mut buffer = [0u8; 256];
+            let mut rx = state.broadcasts.subscribe();
             loop {
-                let mut buffer = [0u8; 256];
-                let n = rsocket.read(&mut buffer).await.unwrap();
-                if n == 0 {
-                    break;
-                } else {
-                    state
-                        .broadcasts
-                        .send(Broadcast::UserMessage {
-                            user: user.clone(),
-                            message: String::from_utf8_lossy(&buffer)
-                                .chars()
-                                .filter(|c| {
-                                    c.is_alphabetic()
-                                        || c.is_digit(10)
-                                        || c.is_ascii_punctuation()
-                                        || *c == ' '
-                                })
-                                .collect::<String>(),
-                        })
-                        .unwrap();
+                tokio::select! {
+                    res = rx.recv() => {
+                        let res = res.unwrap().to_string();
+                        match wsocket.write_all(res.as_bytes()).await {
+                            Ok(_) => (),
+                            Err(_) => break,
+                        }
+                    }
+                    res = rsocket.read(&mut buffer) => {
+                        match res {
+                            Ok(0) | Err(_) => break,
+                            Ok(_) => {
+                                state.broadcasts.send(Broadcast::UserMessage {
+                                    user: user.clone(),
+                                    message: String::from_utf8_lossy(&buffer).chars()
+                                        .filter(|c| {
+                                             c.is_alphabetic() || c.is_digit(10) || c.is_ascii_punctuation() || *c == ' '
+                                        }).collect::<String>(),
+                                }).unwrap();
+                            },
+                        }
+                    }
                 }
             }
 
-            // drop the user
             let mut users = state.users.write().await;
             users.retain(|u| u.name != user.name);
             state.broadcasts.send(Broadcast::UserLeft(user)).unwrap();
