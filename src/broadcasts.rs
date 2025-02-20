@@ -7,6 +7,7 @@ pub enum Broadcast {
     UserJoined(User),
     UserLeft(User),
     UserMessage { user: User, message: String },
+    UserNickChange { user: User, newname: String },
 }
 
 impl Display for Broadcast {
@@ -16,6 +17,11 @@ impl Display for Broadcast {
             B::UserJoined(u) => write!(f, "* {} joined the chat.\n", u.name),
             B::UserLeft(u) => write!(f, "* {} left the chat.\n", u.name),
             B::UserMessage { user, message } => write!(f, "{}: {message}\n", user.name),
+            B::UserNickChange { user, newname } => write!(
+                f,
+                "* {} changed their nickname to {}.\n",
+                user.name, newname
+            ),
         }
     }
 }

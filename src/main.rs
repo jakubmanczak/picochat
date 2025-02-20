@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use broadcasts::Broadcast;
+use commands::handle_commands;
 use state::ServerState;
 use tokio::{
     io::{self, AsyncReadExt, AsyncWriteExt},
@@ -9,6 +10,7 @@ use tokio::{
 };
 
 pub mod broadcasts;
+pub mod commands;
 pub mod messages;
 pub mod routines;
 pub mod state;
@@ -37,7 +39,7 @@ async fn main() {
                 Ok(_) => (),
                 Err(_) => return,
             };
-            let user = match routines::get_nickname(&mut socket, &state).await {
+            let mut user = match routines::get_nickname(&mut socket, &state).await {
                 Ok(Some(u)) => u,
                 Ok(None) | Err(_) => return,
             };
@@ -64,13 +66,25 @@ async fn main() {
                         match res {
                             Ok(0) | Err(_) => break,
                             Ok(_) => {
-                                state.broadcasts.send(Broadcast::UserMessage {
-                                    user: user.clone(),
-                                    message: String::from_utf8_lossy(&buffer).chars()
-                                        .filter(|c| {
-                                             c.is_alphabetic() || c.is_digit(10) || c.is_ascii_punctuation() || *c == ' '
-                                        }).collect::<String>(),
-                                }).unwrap();
+                                let msg: String = String::from_utf8_lossy(&buffer).chars()
+                                    .filter(|c| {
+                                         c.is_alphabetic() || c.is_digit(10) || c.is_ascii_punctuation() || *c == ' '
+                                    }).collect();
+
+                                match msg.starts_with('/') {
+                                    true => {
+                                        match handle_commands(msg, &mut wsocket, &mut user, &state).await {
+                                            Ok(_) => (),
+                                            Err(_) => return,
+                                        }
+                                    },
+                                    false => {
+                                        state.broadcasts.send(Broadcast::UserMessage {
+                                            user: user.clone(),
+                                            message: msg,
+                                        }).unwrap();
+                                    }
+                                }
                             },
                         }
                     }
