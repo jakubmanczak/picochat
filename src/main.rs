@@ -49,8 +49,9 @@ async fn main() {
             let (mut rsocket, mut wsocket) = io::split(socket);
 
             let mut rx = state.broadcasts.subscribe();
+            let mut buffer = [0u8; 256];
             loop {
-                let mut buffer = [0u8; 256];
+                buffer.fill(0);
                 tokio::select! {
                     res = rx.recv() => {
                         let res = res.unwrap().to_string();
@@ -70,7 +71,6 @@ async fn main() {
                                              c.is_alphabetic() || c.is_digit(10) || c.is_ascii_punctuation() || *c == ' '
                                         }).collect::<String>(),
                                 }).unwrap();
-                                // buffer = [0u8; 256];
                             },
                         }
                     }
