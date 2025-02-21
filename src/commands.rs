@@ -18,7 +18,7 @@ const NAME_NOT_PUNCTUATION: &[u8] = b"* Nickname must include some letters\n";
 const NAME_UNDER_12CHAR: &[u8] = b"* Nickname must be at most 12 characters long.\n";
 const NAME_INVALID_CHARS: &[u8] = b"* Nickname must only be ASCII alphanumerics/dots/hyphens.\n";
 
-const HELP: &str = r#"* Picochat is a chat program that works over pure TCP.
+const HELP: &str = r#"* Picochat is a chat program that works over TCP.
 * Messages starting with / are commands and are not broadcasted. Available commands:
 * |---------------------------------------------------------------------|
 * | /ping  | 0 arguments | A test command to check TCP connection.      |
@@ -26,6 +26,7 @@ const HELP: &str = r#"* Picochat is a chat program that works over pure TCP.
 * | /users | 0 arguments | Shows the list of online users.              |
 * | /nick  | 0 arguments | Shows your current nickname.                 |
 * | /nick  | 1 argument  | Changes your nickname (broadcast to others). |
+* | /poke  | 1 argument  | Poke somebody (broadcast only to them).      |
 * | /echo  | n arguments | Prints back your arguments.                  |
 * |---------------------------------------------------------------------|
 "#;
@@ -93,6 +94,30 @@ pub async fn handle_commands(
                 .filter(|u| u.name == user.name)
                 .for_each(|u| u.name = parts[0].to_string());
             user.name = parts[0].to_string();
+        }
+        ("/poke", 1, parts) => {
+            let target = parts[0];
+            if user.name == target {
+                wsocket.write_all(b"* You poked yourself.\n").await?;
+            } else {
+                let users = state.users.read().await;
+                if users.iter().any(|u| u.name == target) {
+                    state
+                        .broadcasts
+                        .send(Broadcast::UserPoke {
+                            poker: user.clone(),
+                            poked: users
+                                .iter()
+                                .filter(|u| u.name == target)
+                                .next()
+                                .unwrap()
+                                .clone(),
+                        })
+                        .unwrap();
+                } else {
+                    wsocket.write_all(b"* No such user found.\n").await?;
+                }
+            }
         }
         ("/echo", _, parts) => {
             wsocket

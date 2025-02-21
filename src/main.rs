@@ -56,10 +56,33 @@ async fn main() {
                 buffer.fill(0);
                 tokio::select! {
                     res = rx.recv() => {
-                        let res = res.unwrap().to_string();
-                        match wsocket.write_all(res.as_bytes()).await {
-                            Ok(_) => (),
-                            Err(_) => break,
+                        let res = res.unwrap();
+                        match res.send_to_all() {
+                            true => {
+                                let res = res.to_string();
+                                match wsocket.write_all(res.as_bytes()).await {
+                                    Ok(_) => (),
+                                    Err(_) => break,
+                                }
+                            }
+                            false => {
+                                if let Broadcast::UserPoke{poker, poked} = &res {
+                                    if &user.name == &poker.name {
+                                        let res = res.actor_string();
+                                        match wsocket.write_all(res.as_bytes()).await {
+                                            Ok(_) => (),
+                                            Err(_) => break,
+                                        }
+                                    }
+                                    if &user.name == &poked.name {
+                                        let res = res.target_string();
+                                        match wsocket.write_all(res.as_bytes()).await {
+                                            Ok(_) => (),
+                                            Err(_) => break,
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     res = rsocket.read(&mut buffer) => {

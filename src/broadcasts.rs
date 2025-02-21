@@ -8,6 +8,7 @@ pub enum Broadcast {
     UserLeft(User),
     UserMessage { user: User, message: String },
     UserNickChange { user: User, newname: String },
+    UserPoke { poker: User, poked: User },
 }
 
 impl Display for Broadcast {
@@ -22,6 +23,36 @@ impl Display for Broadcast {
                 "* {} changed their nickname to {}.\n",
                 user.name, newname
             ),
+            B::UserPoke { poker, poked } => {
+                write!(f, "* {} was poked by {}.\n", poked.name, poker.name)
+            }
+        }
+    }
+}
+
+impl Broadcast {
+    pub fn send_to_all(&self) -> bool {
+        use Broadcast as B;
+        match self {
+            B::UserJoined(_)
+            | B::UserLeft(_)
+            | B::UserMessage { .. }
+            | B::UserNickChange { .. } => true,
+            B::UserPoke { .. } => false,
+        }
+    }
+    pub fn actor_string(&self) -> String {
+        use Broadcast as B;
+        match self {
+            B::UserPoke { poked, .. } => format!("* You poked {}.\n", poked.name),
+            b => b.to_string(),
+        }
+    }
+    pub fn target_string(&self) -> String {
+        use Broadcast as B;
+        match self {
+            B::UserPoke { poker, .. } => format!("* You were poked by {}.\n", poker.name),
+            b => b.to_string(),
         }
     }
 }
