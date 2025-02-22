@@ -5,6 +5,7 @@ version = "0.1.0"
 edition = "2021"
 repository = "https://github.com/jakubmanczak/picochat"
 license = "ISC"
+description = "No-client-required relay chat over TCP."
 
 [profile.release]
 opt-level = 'z'
