@@ -2,6 +2,7 @@
 name = "picochat"
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/jakubmanczak/picochat"
 
 [profile.release]
 opt-level = 'z'
