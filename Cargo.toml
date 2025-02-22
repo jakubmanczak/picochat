@@ -1,8 +1,10 @@
 [package]
 name = "picochat"
+authors = ["Jakub Mańczak"]
 version = "0.1.0"
 edition = "2021"
 repository = "https://github.com/jakubmanczak/picochat"
+license = "ISC"
 
 [profile.release]
 opt-level = 'z'
