@@ -75,7 +75,7 @@ pub async fn handle_commands(
                 return Ok(());
             }
 
-            let nickname_in_use = state.users.read().await.iter().any(|u| u.name == parts[0]);
+            let nickname_in_use = state.is_nickname_in_use(parts[0]).await;
             if nickname_in_use {
                 wsocket.write_all(NAME_IN_USE).await?;
                 return Ok(());
@@ -88,11 +88,7 @@ pub async fn handle_commands(
                     newname: parts[0].to_string(),
                 })
                 .unwrap();
-            let mut users = state.users.write().await;
-            users
-                .iter_mut()
-                .filter(|u| u.name == user.name)
-                .for_each(|u| u.name = parts[0].to_string());
+            state.change_nickname(&user.name, parts[0]).await;
             user.name = parts[0].to_string();
         }
         ("/poke", 1, parts) => {

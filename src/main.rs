@@ -114,8 +114,7 @@ async fn main() {
                 }
             }
 
-            let mut users = state.users.write().await;
-            users.retain(|u| u.name != user.name);
+            state.remove_user(&user).await;
             state.broadcasts.send(Broadcast::UserLeft(user)).unwrap();
         });
     }

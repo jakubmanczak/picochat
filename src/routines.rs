@@ -53,11 +53,10 @@ pub async fn get_nickname(socket: &mut TcpStream, state: &ServerState) -> io::Re
         let msg = CHOSEN_NAME.replace("REPL", &name);
         socket.write_all(msg.as_bytes()).await?;
 
-        let nickname_in_use = state.users.read().await.iter().any(|u| u.name == name);
+        let nickname_in_use = state.is_nickname_in_use(&name).await;
         if !nickname_in_use {
             let user = User { name };
-            let mut users = state.users.write().await;
-            users.push(user.clone());
+            state.add_user(user.clone()).await;
             state
                 .broadcasts
                 .send(Broadcast::UserJoined(user.clone()))

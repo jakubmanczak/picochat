@@ -26,20 +26,35 @@ impl ServerState {
             broadcasts: broadcast::channel::<Broadcast>(8).0,
         }
     }
-    pub async fn list_users(&self) -> String {
-        let mut userlist = String::new();
+    pub async fn add_user(&self, user: User) {
+        let mut users = self.users.write().await;
+        users.push(user);
+    }
+    pub async fn remove_user(&self, user: &User) {
+        let mut users = self.users.write().await;
+        users.retain(|u| u.name != user.name);
+    }
+    pub async fn is_nickname_in_use(&self, nickname: &str) -> bool {
         let users = self.users.read().await;
-        if users.len() == 0 {
-            return NO_USERS_ONLINE.to_string();
+        users.iter().any(|u| u.name == nickname)
+    }
+    pub async fn change_nickname(&self, old_name: &str, new_name: &str) {
+        let mut users = self.users.write().await;
+        if let Some(user) = users.iter_mut().find(|u| u.name == old_name) {
+            user.name = new_name.to_string();
+        }
+    }
+    pub async fn list_users(&self) -> String {
+        let userlist = self.users.read().await;
+        if userlist.is_empty() {
+            NO_USERS_ONLINE.to_string()
         } else {
-            for (i, user) in users.iter().enumerate() {
-                if i == 0 {
-                    userlist = userlist + &user.name;
-                } else {
-                    userlist = userlist + ", " + &user.name;
-                }
-            }
-            return USERS_ONLINE.replace("REPL", &userlist);
+            let userstring = userlist
+                .iter()
+                .map(|u| u.name.clone())
+                .collect::<Vec<_>>()
+                .join(", ");
+            USERS_ONLINE.replace("REPL", &userstring)
         }
     }
 }
