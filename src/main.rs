@@ -1,8 +1,7 @@
-use std::sync::Arc;
-
 use broadcasts::Broadcast;
 use commands::handle_commands;
 use state::ServerState;
+use std::{env, sync::Arc};
 use tokio::{
     io::{self, AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
@@ -17,6 +16,19 @@ pub mod state;
 
 #[tokio::main]
 async fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.iter().any(|s| s == "-v" || s == "--version") {
+        let ver = env!("CARGO_PKG_VERSION");
+        let sha = env!("GIT_SHORTHASH");
+        let por = env!("GIT_PORCELAIN");
+        let rel = match cfg!(debug_assertions) {
+            true => "debug",
+            false => "release",
+        };
+        println!("picochat v{ver} ({sha} {rel} {por})");
+        return;
+    }
+
     let listener = TcpListener::bind("0.0.0.0:7426").await.unwrap();
     let state = Arc::new(ServerState::new());
 
