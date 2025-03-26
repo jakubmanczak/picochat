@@ -27,6 +27,7 @@ const HELP: &str = r#"* Picochat is a chat program that works over TCP.
 * | /nick  | 0 arguments | Shows your current nickname.                 |
 * | /nick  | 1 argument  | Changes your nickname (broadcast to others). |
 * | /poke  | 1 argument  | Poke somebody (broadcast only to them).      |
+* | /me    | n arguments | Broadcasts chosen action in third person.    |
 * | /echo  | n arguments | Prints back your arguments.                  |
 * |---------------------------------------------------------------------|
 "#;
