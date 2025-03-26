@@ -42,7 +42,7 @@ fn main() {
                 if status.is_empty() {
                     println!("cargo::rustc-env=GIT_PORCELAIN=clean");
                 } else {
-                    println!("cargo::rustc-env=GIT_PORCELAIN=changed")
+                    println!("cargo::rustc-env=GIT_PORCELAIN=dirty")
                 }
             }
             Err(_) => (),

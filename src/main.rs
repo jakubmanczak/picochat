@@ -22,8 +22,8 @@ async fn main() {
         let sha = env!("GIT_SHORTHASH");
         let por = env!("GIT_PORCELAIN");
         let rel = match cfg!(debug_assertions) {
-            true => "debug",
-            false => "release",
+            true => "dbg",
+            false => "rel",
         };
         println!("picochat v{ver} ({sha} {rel} {por})");
         return;
