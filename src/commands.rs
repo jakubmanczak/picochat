@@ -120,6 +120,17 @@ pub async fn handle_commands(
                 .write_all(format!("* Echo: {:?}\n", parts).as_bytes())
                 .await?
         }
+        ("/me", 1.., parts) => {
+            let b = Broadcast::UserMe {
+                user: user.clone(),
+                message: parts
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>()
+                    .join(" "),
+            };
+            state.broadcasts.send(b).unwrap();
+        }
         (_, _, _) => wsocket.write_all(CMD_BAD).await?,
     }
 

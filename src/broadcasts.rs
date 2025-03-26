@@ -9,6 +9,7 @@ pub enum Broadcast {
     UserMessage { user: User, message: String },
     UserNickChange { user: User, newname: String },
     UserPoke { poker: User, poked: User },
+    UserMe { user: User, message: String },
 }
 
 impl Display for Broadcast {
@@ -26,6 +27,9 @@ impl Display for Broadcast {
             B::UserPoke { poker, poked } => {
                 write!(f, "* {} was poked by {}.\n", poked.name, poker.name)
             }
+            B::UserMe { user, message } => {
+                write!(f, "* {} {message}\n", user.name)
+            }
         }
     }
 }
@@ -37,7 +41,8 @@ impl Broadcast {
             B::UserJoined(_)
             | B::UserLeft(_)
             | B::UserMessage { .. }
-            | B::UserNickChange { .. } => true,
+            | B::UserNickChange { .. }
+            | B::UserMe { .. } => true,
             B::UserPoke { .. } => false,
         }
     }
